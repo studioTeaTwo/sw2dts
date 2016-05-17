@@ -113,4 +113,19 @@ describe("CLI", () => {
                 done();
             });
     });
+
+    it("url to stdout", (done) => {
+        const testUrl = "https://raw.githubusercontent.com/mstssk/sw2dts/v1.0.5/test/fixtures/swagger.json";
+        const expectedPath = path.resolve(fixturesDir, "swagger.json.d.ts");
+        nexpect
+            .spawn("node", [sw2dtsPath, "--url", testUrl])
+            .run((err, stdout, exit) => {
+                const actual = stdout.join("\n") + "\n";
+                const expected = fs.readFileSync(expectedPath).toString();
+                assert.equal(actual, expected);
+                assert(!err, "should not error");
+                assert(exit === 0, "should exit(0).");
+                done();
+            });
+    });
 });
