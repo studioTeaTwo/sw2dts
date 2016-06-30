@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as https from "https";
 import * as commandpost from "commandpost";
 import converter from "./converter";
 
@@ -6,6 +7,7 @@ const pkg = require("../package.json");
 
 interface RootOptions {
     stdin: boolean;
+    url: string[];
     output: string[];
     namespace: string[];
 }
@@ -14,6 +16,7 @@ const root = commandpost
     .create<RootOptions, { input_filename: string }>("sw2dts [input_filename]")
     .version(pkg.version, "-v, --version")
     .option("--stdin", "Input from standard input.")
+    .option("--url <url>", "Input from URL.")
     .option("-o, --output <output_filename>", "Output to file.")
     .option("-n, --namespace <namespace>", "Use namespace.")
     .action((opts, args) => {
@@ -26,6 +29,8 @@ const root = commandpost
             promise = fromFile(args.input_filename);
         } else if (opts.stdin) {
             promise = fromStdin();
+        } else if (opts.url.length) {
+            promise = fromUrl(opts.url[0]);
         } else {
             process.stdout.write(root.helpText());
         }
@@ -76,6 +81,23 @@ function fromFile(inputFileName: string): Promise<string> {
     return new Promise((resolve, reject) => {
         let file = fs.readFileSync(inputFileName, { encoding: "utf-8" });
         resolve(file);
+    });
+}
+
+function fromUrl(url: string) {
+    if (!url.startsWith("https:") && !url.startsWith("http:")) {
+        throw new Error("Unsupported protocol: " + url);
+    }
+    return new Promise((resolve, reject) => {
+        https.get(url, res => {
+            if (res.statusCode !== 200) {
+                throw new Error(res.statusMessage);
+            }
+            let body = "";
+            res.on("data", (chunk: string) => body += chunk);
+            res.on("end", () => resolve(body));
+            res.on('error', (e: Error) => { throw e; });
+        });
     });
 }
 
